@@ -13,7 +13,7 @@ class PresentationListEncoder(ModelEncoder):
         "presenter_email",
     ]
     def get_extra_data(self, o):
-        return {"status": o.status}
+        return {"status": o.status.name}
 
 class PresentationDetailEncoder(ModelEncoder):
     model = Presentation
@@ -113,7 +113,7 @@ def api_show_presentation(request, id):
         return JsonResponse(
             {"presentation", presentation},
             encoder=PresentationDetailEncoder,
-            # safe=False,
+            safe=False,
             )
     elif request.method == "DELETE":
         count, _ = Presentation.objects.filter(id=id).delete()
