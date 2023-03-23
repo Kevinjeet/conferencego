@@ -1,8 +1,31 @@
 from django.http import JsonResponse
-
+from django.views.decorators.http import require_http_methods
 from .models import Attendee
+import json
+from common.json import ModelEncoder
+from events.models import Conference
+
+class AttendeeListEncoder(ModelEncoder):
+    model = Attendee
+    properties =[
+        "name",
+        "email",
+     ]
+
+class AttendeeDetailEncoder(ModelEncoder):
+    model = Attendee
+    properties = [
+        "email",
+        "name",
+        "company_name",
+        "created",
+        # "conference",
+    ]
+    def get_extra_data(self, o):
+        return { "conference": o.conference.name, "badge": hasattr(o, "badge")}
 
 
+@require_http_methods(["GET", "POST"])
 def api_list_attendees(request, conference_id):
     """
     Lists the attendees names and the link to the attendee
@@ -23,7 +46,32 @@ def api_list_attendees(request, conference_id):
         ]
     }
     """
-    return JsonResponse({})
+
+    if request.method == "GET":
+        attendees = Attendee.objects.filter(conference=conference_id)
+        return JsonResponse(
+            {"attendees": attendees},
+            encoder=AttendeeListEncoder,
+        )
+    else:
+        content = json.loads(request.body)
+
+        # Get the Conference object and put it in the content dict
+        try:
+            conference = Conference.objects.get(id=conference_id)
+            content["conference"] = conference
+        except Conference.DoesNotExist:
+            return JsonResponse(
+                {"message": "Invalid conference id"},
+                status=400,
+            )
+
+        attendee = Attendee.objects.create(**content)
+        return JsonResponse(
+            attendee,
+            encoder=AttendeeDetailEncoder,
+            safe=False,
+        )
 
 
 def api_show_attendee(request, id):
@@ -46,4 +94,22 @@ def api_show_attendee(request, id):
         }
     }
     """
-    return JsonResponse({})
+    attendees = Attendee.objects.get(id=id)
+    # attendees.create_badge()
+    return JsonResponse(
+        attendees,
+        encoder=AttendeeDetailEncoder,
+        safe=False
+    )
+    # return JsonResponse(
+    #     {
+    #         "email": attendees.email,
+    #         "name": attendees.name,
+    #         "company_name": attendees.company_name,
+    #         "created": attendees.created,
+    #         "conference": {
+    #             "name": attendees.conference.name,
+    #             "href": attendees.conference.get_api_url(),
+    #     }
+    #     }
+    # )

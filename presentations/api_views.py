@@ -1,8 +1,30 @@
 from django.http import JsonResponse
-
 from .models import Presentation
+from common.json import ModelEncoder
+from django.views.decorators.http import require_http_methods
+import json
+
+class PresentationListEncoder(ModelEncoder):
+    model = Presentation
+    properties = [
+        "presenter_name",
+        "company_name",
+        "presenter_email",
+    ]
+
+class PresentationDetailEncoder(ModelEncoder):
+    model = Presentation
+    properties = [
+        "presenter_name",
+        "company_name",
+        "presenter_email",
+        "title",
+        "synopsis",
+        "created",
+    ]
 
 
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def api_list_presentations(request, conference_id):
     """
     Lists the presentation titles and the link to the
@@ -25,17 +47,28 @@ def api_list_presentations(request, conference_id):
         ]
     }
     """
-    presentations = [
-        {
-            "title": p.title,
-            "status": p.status.name,
-            "href": p.get_api_url(),
-        }
-        for p in Presentation.objects.filter(conference=conference_id)
-    ]
-    return JsonResponse({"presentations": presentations})
+    if request.method == "GET":
+        presentations = Presentation.objects.filter(conference=conference_id)
+        return JsonResponse(
+            presentations,
+            encoder=PresentationListEncoder,
+            safe=False,
+        )
+    elif request.method == "DELETE":
+        count, _ = Presentation.objects.filter(conference_id=conference_id).delete
+        return JsonResponse({
+            "delete": count > 0
+        })
+    elif request.method == "POST":
+        content = json.loads(request.body)
+        presentations = Presentation.objects.create(**content)
+        return JsonResponse(
+            presentations,
+            encoder=PresentationDetailEncoder,
+            safe=False
+        )
 
-
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def api_show_presentation(request, id):
     """
     Returns the details for the Presentation model specified
@@ -61,4 +94,31 @@ def api_show_presentation(request, id):
         }
     }
     """
-    return JsonResponse({})
+    if request.method == "GET":
+        presentation= Presentation.objects.get(id=id)
+        return JsonResponse(
+            presentation,
+            encoder=PresentationDetailEncoder,
+            safe=False,
+            )
+    elif request.method == "DELETE":
+        count, _ = Presentation.objects.filter(id=id).delete
+        return JsonResponse({
+            "delete": count> 0,})
+    elif request.method == "PUT":
+        content = json.loads(request.body)
+        Presentation.objects.filter(id=id).update(**content)
+        presentation = Presentation.objects.get(id=id)
+        return JsonResponse(
+            presentation,
+            encoder=PresentationDetailEncoder,
+            safe=False,
+        )
+    else:
+        content = json.loads(request.body)
+        Presentation.objects.filter(id=id).update(**content)
+        presentation = Presentation.objects.get(id=id)
+        return JsonResponse(
+            presentation,
+            enoder=PresentationDetailEncoder
+        )
