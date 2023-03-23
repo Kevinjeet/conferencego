@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from .models import Presentation
+from .models import Presentation, Status
 from common.json import ModelEncoder
 from django.views.decorators.http import require_http_methods
 import json
@@ -7,10 +7,13 @@ import json
 class PresentationListEncoder(ModelEncoder):
     model = Presentation
     properties = [
+        "title",
         "presenter_name",
         "company_name",
         "presenter_email",
     ]
+    def get_extra_data(self, o):
+        return {"status": o.status}
 
 class PresentationDetailEncoder(ModelEncoder):
     model = Presentation
@@ -24,7 +27,7 @@ class PresentationDetailEncoder(ModelEncoder):
     ]
 
 
-@require_http_methods(["GET", "POST", "PUT", "DELETE"])
+@require_http_methods(["GET", "POST", "DELETE"])
 def api_list_presentations(request, conference_id):
     """
     Lists the presentation titles and the link to the
@@ -50,22 +53,33 @@ def api_list_presentations(request, conference_id):
     if request.method == "GET":
         presentations = Presentation.objects.filter(conference=conference_id)
         return JsonResponse(
-            presentations,
+            {"presentations": presentations},
             encoder=PresentationListEncoder,
-            safe=False,
         )
     elif request.method == "DELETE":
         count, _ = Presentation.objects.filter(conference_id=conference_id).delete
-        return JsonResponse({
-            "delete": count > 0
-        })
+        return JsonResponse({"delete": count > 0})
+
     elif request.method == "POST":
         content = json.loads(request.body)
+        try:
+            status = Status.objects.get(id=content["status"])
+            content["status"] = status
+        except KeyError:
+            return JsonResponse({
+                "message": "Invalid status"},
+                status=400,
+            )
+        except Status.DoesNotExist:
+            return JsonResponse({
+                "message": "Invalid status"},
+                status=400,
+                )
         presentations = Presentation.objects.create(**content)
         return JsonResponse(
             presentations,
             encoder=PresentationDetailEncoder,
-            safe=False
+            safe=False,
         )
 
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
@@ -95,18 +109,25 @@ def api_show_presentation(request, id):
     }
     """
     if request.method == "GET":
-        presentation= Presentation.objects.get(id=id)
+        presentation = Presentation.objects.get(id=id)
         return JsonResponse(
-            presentation,
+            {"presentation", presentation},
             encoder=PresentationDetailEncoder,
-            safe=False,
+            # safe=False,
             )
     elif request.method == "DELETE":
-        count, _ = Presentation.objects.filter(id=id).delete
-        return JsonResponse({
-            "delete": count> 0,})
+        count, _ = Presentation.objects.filter(id=id).delete()
+        return JsonResponse({"delete": count> 0,})
     elif request.method == "PUT":
         content = json.loads(request.body)
+        try:
+            if "status" in content:
+                status = Status.objects.get(id=content["status"])
+                content["status"] = status
+        except Status.DoesNotExist:
+            return JsonResponse({
+                "message": "Invalid status"},
+                status=400,)
         Presentation.objects.filter(id=id).update(**content)
         presentation = Presentation.objects.get(id=id)
         return JsonResponse(
@@ -116,7 +137,7 @@ def api_show_presentation(request, id):
         )
     else:
         content = json.loads(request.body)
-        Presentation.objects.filter(id=id).update(**content)
+        Presentation.objects.filter(id=id).create(**content)
         presentation = Presentation.objects.get(id=id)
         return JsonResponse(
             presentation,

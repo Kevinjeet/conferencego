@@ -44,6 +44,7 @@ class ConferenceListEncoder(ModelEncoder):
         "name",
     ]
 
+#check here
 @require_http_methods(["GET", "POST"])
 def api_list_conferences(request):
     """
@@ -70,6 +71,7 @@ def api_list_conferences(request):
             {"conferences": conferences},
             encoder=ConferenceListEncoder,
         )
+    #request.method =="POST":
     else:
         content = json.loads(request.body)
         try:
@@ -141,7 +143,7 @@ def api_show_conference(request, id):
             safe=False
         )
 
-
+#check here
 @require_http_methods(["GET", "POST"])
 def api_list_locations(request):
     """
@@ -168,8 +170,10 @@ def api_list_locations(request):
             {"locations": locations},
             encoder=LocationListEncoder,
         )
+    #if request.method == "POST"(to create):
     else:
         content = json.loads(request.body)
+        #reference for doing try and except
         # Get the State object and put it in the content dict
         try:
             state = State.objects.get(abbreviation=content["state"])
@@ -187,7 +191,7 @@ def api_list_locations(request):
             safe=False,
         )
 
-
+#check here
 @require_http_methods(["GET", "PUT", "DELETE"])
 def api_show_location(request, id):
     """
@@ -215,7 +219,8 @@ def api_show_location(request, id):
             )
     elif request.method == "DELETE":
         count , _ = Location.objects.filter(id=id).delete()
-        return JsonResponse({"delete": count > 0})
+        return JsonResponse({"deleted": count > 0})
+    #PUT
     else:
         # Convert the submitted JSON-formatted string into a dictionary.
         content = json.loads(request.body)
