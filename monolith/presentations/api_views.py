@@ -3,6 +3,8 @@ from .models import Presentation, Status
 from common.json import ModelEncoder
 from django.views.decorators.http import require_http_methods
 import json
+from events.api_views import ConferenceListEncoder
+from events.models import Conference
 
 class PresentationListEncoder(ModelEncoder):
     model = Presentation
@@ -24,7 +26,11 @@ class PresentationDetailEncoder(ModelEncoder):
         "title",
         "synopsis",
         "created",
+        "conference",
     ]
+    encoders = {
+        "conference": ConferenceListEncoder()
+    }
 
 
 @require_http_methods(["GET", "POST", "DELETE"])
@@ -63,16 +69,12 @@ def api_list_presentations(request, conference_id):
     elif request.method == "POST":
         content = json.loads(request.body)
         try:
-            status = Status.objects.get(id=content["status"])
-            content["status"] = status
-        except KeyError:
+            conference = Conference.objects.get(id=conference_id)
+            content["conference"] = conference
+
+        except Conference.DoesNotExist:
             return JsonResponse({
-                "message": "Invalid status"},
-                status=400,
-            )
-        except Status.DoesNotExist:
-            return JsonResponse({
-                "message": "Invalid status"},
+                "message": "Invalid conference id"},
                 status=400,
                 )
         presentations = Presentation.objects.create(**content)
@@ -121,13 +123,14 @@ def api_show_presentation(request, id):
     elif request.method == "PUT":
         content = json.loads(request.body)
         try:
-            if "status" in content:
-                status = Status.objects.get(id=content["status"])
-                content["status"] = status
-        except Status.DoesNotExist:
+            conference = Conference.objects.get(id=id)
+            content["conference"] = conference
+
+        except Conference.DoesNotExist:
             return JsonResponse({
-                "message": "Invalid status"},
-                status=400,)
+                "message": "Invalid conference id"},
+                status=400,
+                )
         Presentation.objects.filter(id=id).update(**content)
         presentation = Presentation.objects.get(id=id)
         return JsonResponse(
@@ -137,8 +140,16 @@ def api_show_presentation(request, id):
         )
     else:
         content = json.loads(request.body)
-        Presentation.objects.filter(id=id).create(**content)
-        presentation = Presentation.objects.get(id=id)
+        try:
+            conference = Conference.objects.get(id=id)
+            content["conference"] = conference
+
+        except Conference.DoesNotExist:
+            return JsonResponse({
+                "message": "Invalid conference id"},
+                status=400,
+                )
+        presentations = Presentation.objects.create(**content)
         return JsonResponse(
             presentation,
             enoder=PresentationDetailEncoder

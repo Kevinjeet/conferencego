@@ -17,7 +17,7 @@ class LocationDetailEncoder(ModelEncoder):
         "picture_url",
     ]
     def get_extra_data(self, o):
-        return { "state":o.state.abbreviation}
+        return { "state": o.state.abbreviation}
 
 class LocationListEncoder(ModelEncoder):
     model = Location
