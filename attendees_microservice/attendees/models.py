@@ -1,7 +1,17 @@
 from django.db import models
 from django.urls import reverse
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 
+class AccountVO(models.Model):
+    email = models.EmailField()
+    first_name = models.CharField(max_length=200)
+    last_name = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=False)
+    updated = models.DateTimeField(default=timezone.now)
+
+    # def str(self):
+    #     return self.email
 
 class ConferenceVO(models.Model):
     import_href = models.CharField(max_length=200, unique=True)
@@ -19,10 +29,11 @@ class Attendee(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     conference = models.ForeignKey(
-        "ConferenceVO",
+        ConferenceVO,
         related_name="attendees",
         on_delete=models.CASCADE,
     )
+
 
     def __str__(self):
         return self.name
